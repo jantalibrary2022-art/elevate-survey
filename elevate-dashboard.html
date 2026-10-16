@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project ELEVATE — Survey Dashboard</title>
+<style>
+  :root{
+    --navy:#1F3A5F; --accent:#2E7D6B; --grey:#5A5A5A; --light:#EAF0EE;
+    --border:#CBD5D1; --bg:#F4F6F5; --amber:#C98A1A; --red:#B23B3B; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:#222;
+    font-family:'Segoe UI',system-ui,-apple-system,'Noto Sans',Roboto,Arial,sans-serif;line-height:1.5}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px}
+  header.band{background:var(--navy);color:#fff;border-radius:var(--radius);
+    padding:20px 22px;margin:14px 0 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+  header.band .tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#AFC6BE;font-weight:700}
+  header.band h1{margin:3px 0 0;font-size:20px;font-weight:700}
+  header.band .updated{font-size:12px;color:#CBD9D4;text-align:right}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .kpi .label{font-size:12px;color:var(--grey);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .kpi .value{font-size:30px;font-weight:800;color:var(--navy);margin-top:4px;line-height:1}
+  .kpi .sub{font-size:12px;color:var(--grey);margin-top:4px}
+  .progress-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  .progress-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+  .progress-top .big{font-size:22px;font-weight:800;color:var(--navy)}
+  .progress-top .goal{font-size:13px;color:var(--grey)}
+  .bar{height:16px;background:var(--light);border-radius:999px;overflow:hidden}
+  .bar > span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#3a9c86);width:0%;transition:width .6s}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px}
+  .card h2{font-size:14px;margin:0 0 14px;color:var(--accent);text-transform:uppercase;letter-spacing:.5px}
+  .full{grid-column:1 / -1}
+  canvas{max-width:100%}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--light)}
+  th{color:var(--grey);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--navy)}
+  .rowbar{position:relative}
+  .rowbar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--light);z-index:0;border-radius:4px}
+  .rowbar span{position:relative;z-index:1}
+  .loading{text-align:center;color:var(--grey);padding:60px 0;font-size:15px}
+  .err{background:#FBEAEA;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:none}
+  .foot{font-size:11.5px;color:var(--grey);text-align:center;margin:18px 0 40px}
+  @media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="band">
+    <div>
+      <div class="tag">National Skills Foundation of India · Project ELEVATE</div>
+      <h1>Skill & Livelihood Survey — Live Dashboard</h1>
+    </div>
+    <div class="updated" id="updated">Connecting…</div>
+  </header>
+
+  <div class="err" id="err"></div>
+  <div class="loading" id="loading">Loading live data…</div>
+
+  <div id="content" style="display:none">
+
+    <!-- KPI row -->
+    <div class="grid">
+      <div class="kpi"><div class="label">Total responses</div><div class="value" id="k_total">0</div><div class="sub" id="k_total_sub">of 300 target</div></div>
+      <div class="kpi"><div class="label">Today</div><div class="value" id="k_today">0</div><div class="sub">responses so far today</div></div>
+      <div class="kpi"><div class="label">Women</div><div class="value" id="k_women">0</div><div class="sub" id="k_women_sub">of responses</div></div>
+      <div class="kpi"><div class="label">Persons with disability</div><div class="value" id="k_pwd">0</div><div class="sub" id="k_pwd_sub">said yes</div></div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+      <div class="progress-top">
+        <div class="big"><span id="p_pct">0</span>% of target</div>
+        <div class="goal"><span id="p_count">0</span> / 300 responses</div>
+      </div>
+      <div class="bar"><span id="p_bar"></span></div>
+    </div>
+
+    <!-- Daily trend (full width) -->
+    <div class="card full">
+      <h2>Responses by day</h2>
+      <canvas id="chartDaily" height="90"></canvas>
+    </div>
+
+    <div class="cards">
+      <!-- Slum-wise -->
+      <div class="card">
+        <h2>Responses by area / slum</h2>
+        <canvas id="chartArea" height="200"></canvas>
+      </div>
+      <!-- Gender -->
+      <div class="card">
+        <h2>Gender</h2>
+        <canvas id="chartGender" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Trades (full) -->
+    <div class="card full">
+      <h2>Trade interest — weighted score & mentions</h2>
+      <table>
+        <thead><tr><th>Trade</th><th style="text-align:right">Weighted score</th><th style="text-align:right">People who picked it</th></tr></thead>
+        <tbody id="tradeBody"></tbody>
+      </table>
+      <p style="font-size:11.5px;color:var(--grey);margin:12px 2px 0">Weighted score: 1st choice = 3 points, 2nd = 2, 3rd = 1. "People who picked it" counts anyone who listed the trade in their top three.</p>
+    </div>
+
+    <!-- Consent -->
+    <div class="cards">
+      <div class="card">
+        <h2>Consent</h2>
+        <table>
+          <tbody>
+            <tr><td>Agreed &amp; proceeded</td><td class="num" id="c_acc">0</td></tr>
+            <tr><td>Declined</td><td class="num" id="c_dec">0</td></tr>
+            <tr><td>Acceptance rate</td><td class="num" id="c_rate">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Disability status (of responses)</h2>
+        <table>
+          <tbody id="pwdBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="foot">Live aggregate counts only — no names, phone numbers or individual responses are shown here. Project ELEVATE.</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBDR-YtGmAwMY7UZq8LK38wQXiqSQbZtoU",
+    authDomain: "elevate-survey.firebaseapp.com",
+    projectId: "elevate-survey",
+    storageBucket: "elevate-survey.firebasestorage.app",
+    messagingSenderId: "879414520638",
+    appId: "1:879414520638:web:f214484e74a2cf63c2da6f"
+  };
+  const TARGET = 300;
+
+  let db=null;
+  try{ firebase.initializeApp(firebaseConfig); db=firebase.firestore(); }
+  catch(e){ showErr("Could not connect to the database."); }
+
+  const $=id=>document.getElementById(id);
+  function showErr(m){ const e=$("err"); e.textContent=m; e.style.display="block"; $("loading").style.display="none"; }
+
+  const C={navy:"#1F3A5F",accent:"#2E7D6B",amber:"#C98A1A",grey:"#9AA7A2",blue:"#3E6E9C",plum:"#7A4F7A"};
+  let charts={};
+
+  function sortedEntries(obj){ return Object.entries(obj||{}).sort((a,b)=>b[1]-a[1]); }
+
+  function render(s){
+    $("loading").style.display="none";
+    $("content").style.display="block";
+
+    const total = s.total||0;
+    const dates = s.byDate||{};
+    const todayStr=(()=>{const d=new Date();const p=x=>String(x).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());})();
+    const gender=s.byGender||{}, area=s.byArea||{}, pwd=s.byPwd||{}, consent=s.consent||{};
+
+    // KPIs
+    $("k_total").textContent=total;
+    $("k_today").textContent=dates[todayStr]||0;
+    $("k_women").textContent=gender["Woman"]||0;
+    $("k_women_sub").textContent = total? Math.round(100*(gender["Woman"]||0)/total)+"% of responses":"of responses";
+    $("k_pwd").textContent=pwd["Yes"]||0;
+
+    // Progress
+    const pct = Math.min(100, Math.round(100*total/TARGET));
+    $("p_pct").textContent=pct; $("p_count").textContent=total;
+    $("k_total_sub").textContent="of "+TARGET+" target";
+    $("p_bar").style.width=pct+"%";
+
+    // Daily trend
+    const dkeys=Object.keys(dates).sort();
+    drawLine("chartDaily", dkeys, dkeys.map(k=>dates[k]));
+
+    // Area bar
+    const aEnt=sortedEntries(area);
+    drawBar("chartArea", aEnt.map(e=>e[0]), aEnt.map(e=>e[1]), C.accent);
+
+    // Gender doughnut
+    const gEnt=sortedEntries(gender);
+    drawDoughnut("chartGender", gEnt.map(e=>e[0]), gEnt.map(e=>e[1]));
+
+    // Trades table (weighted + mentions)
+    const tw=s.tradeWeighted||{}, tm=s.tradeMentions||{};
+    const names=new Set([...Object.keys(tw),...Object.keys(tm)]);
+    const trows=[...names].map(n=>({n,w:tw[n]||0,m:tm[n]||0})).sort((a,b)=>b.w-a.w);
+    const maxW=Math.max(1,...trows.map(r=>r.w));
+    $("tradeBody").innerHTML=trows.map(r=>
+      `<tr><td class="rowbar"><span class="fill" style="width:${Math.round(100*r.w/maxW)}%"></span><span>${r.n}</span></td>`
+      +`<td class="num">${r.w}</td><td class="num">${r.m}</td></tr>`).join("") || `<tr><td colspan="3" style="color:var(--grey)">No trade data yet.</td></tr>`;
+
+    // Consent
+    const acc=consent.accepted||0, dec=consent.declined||0;
+    $("c_acc").textContent=acc; $("c_dec").textContent=dec;
+    $("c_rate").textContent=(acc+dec)? Math.round(100*acc/(acc+dec))+"%":"—";
+
+    // PwD breakdown
+    const pEnt=sortedEntries(pwd);
+    $("pwdBody").innerHTML=pEnt.map(([k,v])=>`<tr><td>${k}</td><td class="num">${v}</td></tr>`).join("")
+      || `<tr><td colspan="2" style="color:var(--grey)">No data yet.</td></tr>`;
+
+    $("updated").textContent="Updated "+new Date().toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
+  }
+
+  function drawLine(id,labels,data){
+    if(charts[id])charts[id].destroy();
+    charts[id]=new Chart($(id),{type:"line",
+      data:{labels,datasets:[{data,borderColor:C.accent,backgroundColor:"rgba(46,125,107,.12)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:C.accent}]},
+      options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  }
+  function drawBar(id,labels,data,color){
+    if(charts[id])charts[id].destroy();
+    charts[id]=new Chart($(id),{type:"bar",
+      data:{labels,datasets:[{data,backgroundColor:color}]},
+      options:{indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});
+  }
+  function drawDoughnut(id,labels,data){
+    if(charts[id])charts[id].destroy();
+    charts[id]=new Chart($(id),{type:"doughnut",
+      data:{labels,datasets:[{data,backgroundColor:[C.accent,C.blue,C.amber,C.plum,C.grey]}]},
+      options:{plugins:{legend:{position:"bottom",labels:{boxWidth:12,font:{size:12}}}}}});
+  }
+
+  if(db){
+    // Live listener: updates the moment counters change.
+    db.collection("stats").doc("aggregates").onSnapshot(
+      doc=>{ if(doc.exists) render(doc.data()||{}); else { $("loading").textContent="No responses recorded yet."; } },
+      err=>{ console.error(err); showErr("Could not read dashboard data. Check that the stats collection is readable."); }
+    );
+  }
+</script>
+</body>
+</html>
