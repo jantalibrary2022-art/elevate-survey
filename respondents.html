@@ -234,7 +234,10 @@
       console.error(err);
       $("loading").style.display="none";
       $("loginBox").style.display="block";
-      showErr("Signed in, but this account does not have permission to view the respondent list. Contact the study consultant.");
+      const b=$("btnIn"); b.disabled=false; b.textContent="Sign in";
+      showErr("Signed in as "+(auth.currentUser?auth.currentUser.email:"this account")
+             +", but it is not on the authorised list for the respondent data. "
+             +"Sign out and use an authorised account, or contact the study consultant.");
     }
   }
 
