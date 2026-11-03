@@ -43,6 +43,10 @@
 
   .msg{display:none;border-radius:8px;padding:11px 13px;font-size:13.5px;margin-bottom:14px}
   .msg.err{background:#FBEAEA;border:1px solid var(--red);color:var(--red)}
+  .msg.ok{background:var(--light);border:1px solid var(--accent);color:#1C5A4C}
+  .forgot{display:block;text-align:center;margin-top:14px;font-size:13px}
+  .forgot a{color:var(--accent);text-decoration:none;cursor:pointer}
+  .forgot a:hover{text-decoration:underline}
 
   /* ---- toolbar ---- */
   .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
@@ -93,12 +97,14 @@
     <h2>Sign in</h2>
     <p class="sub">This page contains respondent contact details and is restricted to the authorised project team.</p>
     <div class="msg err" id="loginErr"></div>
+    <div class="msg ok" id="loginOk"></div>
     <label for="em">Email</label>
     <input type="email" id="em" autocomplete="username">
     <label for="pw">Password</label>
     <input type="password" id="pw" autocomplete="current-password">
     <button id="btnIn">Sign in</button>
-    <p class="note">Accounts are created by the project team. If you need access or have forgotten your password, contact the study consultant.</p>
+    <span class="forgot"><a id="btnReset">Forgot your password?</a></span>
+    <p class="note">Accounts are created by the project team. If you do not have access, contact the study consultant.</p>
   </div>
 
   <!-- DATA -->
@@ -144,7 +150,23 @@
     db=firebase.firestore();
   }catch(e){ console.error(e); }
 
-  function showErr(m){ const e=$("loginErr"); e.textContent=m; e.style.display="block"; }
+  function clearMsgs(){ $("loginErr").style.display="none"; $("loginOk").style.display="none"; }
+  function showErr(m){ clearMsgs(); const e=$("loginErr"); e.textContent=m; e.style.display="block"; }
+  function showOk(m){ clearMsgs(); const e=$("loginOk"); e.textContent=m; e.style.display="block"; }
+
+  // ---------- password reset ----------
+  $("btnReset").addEventListener("click", async ()=>{
+    const email=$("em").value.trim();
+    if(!email){ showErr("Enter your email address above, then click this again."); $("em").focus(); return; }
+    try{
+      await auth.sendPasswordResetEmail(email);
+      showOk("If that email has an account, a password reset link has been sent to it. Check your inbox, and your spam folder.");
+    }catch(err){
+      console.error(err);
+      if(err && err.code==="auth/invalid-email") showErr("That email address is not valid.");
+      else showErr("Could not send the reset email. Check your internet and try again.");
+    }
+  });
 
   // ---------- sign in / out ----------
   $("btnIn").addEventListener("click", doLogin);
@@ -152,7 +174,7 @@
   $("em").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pw").focus(); });
 
   async function doLogin(){
-    $("loginErr").style.display="none";
+    clearMsgs();
     const email=$("em").value.trim(), pass=$("pw").value;
     if(!email || !pass){ showErr("Please enter both email and password."); return; }
     const b=$("btnIn"); b.disabled=true; b.textContent="Signing in…";
