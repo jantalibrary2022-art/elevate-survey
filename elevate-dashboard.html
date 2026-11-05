@@ -122,11 +122,15 @@
         <h2>Consent</h2>
         <table>
           <tbody>
-            <tr><td>Agreed &amp; proceeded</td><td class="num" id="c_acc">0</td></tr>
-            <tr><td>Declined</td><td class="num" id="c_dec">0</td></tr>
+            <tr><td>Agreed, and opened the form</td><td class="num" id="c_acc">0</td></tr>
+            <tr><td>Declined at the consent step</td><td class="num" id="c_dec">0</td></tr>
             <tr><td>Acceptance rate</td><td class="num" id="c_rate">—</td></tr>
+            <tr><td>Completed and submitted</td><td class="num" id="c_done">0</td></tr>
+            <tr><td>Did not complete</td><td class="num" id="c_drop">0</td></tr>
+            <tr><td>Completion rate</td><td class="num" id="c_comp">—</td></tr>
           </tbody>
         </table>
+        <p style="font-size:11.5px;color:var(--grey);margin:12px 2px 0">Consent is recorded when someone agrees and opens the form, so this figure runs ahead of submitted responses. The gap is people who began and did not finish, plus anyone who opened the link more than once.</p>
       </div>
       <div class="card">
         <h2>Disability status (of responses)</h2>
@@ -215,6 +219,9 @@
     const acc=consent.accepted||0, dec=consent.declined||0;
     $("c_acc").textContent=acc; $("c_dec").textContent=dec;
     $("c_rate").textContent=(acc+dec)? Math.round(100*acc/(acc+dec))+"%":"—";
+    $("c_done").textContent=total;
+    $("c_drop").textContent=Math.max(0, acc-total);
+    $("c_comp").textContent=acc? Math.round(100*total/acc)+"%":"—";
 
     // PwD breakdown
     const pEnt=sortedEntries(pwd);
